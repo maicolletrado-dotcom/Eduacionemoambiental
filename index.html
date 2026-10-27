@@ -343,6 +343,30 @@ textarea.opinion:focus{ outline:none; border-color:var(--violet); }
 canvas{ max-width:100%; }
 footer.note{ text-align:center; font-size:12px; color:#9A96B8; margin-top:26px; }
 .empty-note{ font-size:13px; color:var(--ink-soft); text-align:center; padding:20px; }
+/* pretest / postest */
+.pp-card{ max-width:720px; margin:0 auto 18px; }
+.pp-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.pp-tag{ font-weight:900; font-size:13px; padding:5px 12px; border-radius:999px; color:#fff; }
+.pp-tag.pre{ background:var(--grad-cool); } .pp-tag.post{ background:var(--grad-warm); }
+.pp-count{ font-size:12.5px; color:var(--ink-soft); font-weight:800; }
+.pp-bar{ height:9px; background:var(--line); border-radius:99px; overflow:hidden; margin-bottom:16px; }
+.pp-bar i{ display:block; height:100%; background:var(--grad-main); border-radius:99px; transition:width .3s; }
+.pp-q{ font-size:18px; line-height:1.4; margin:0 0 14px; }
+.pp-opts,.pp-lik{ display:flex; flex-direction:column; gap:9px; }
+.pp-lik{ flex-direction:row; flex-wrap:wrap; }
+.pp-opts button,.pp-lik button{ text-align:left; border:2px solid var(--line); background:#fff; border-radius:14px; padding:13px 15px; font:inherit; font-weight:700; font-size:14.5px; cursor:pointer; color:var(--ink); transition:all .15s; }
+.pp-lik button{ flex:1 1 90px; text-align:center; }
+.pp-opts button:hover,.pp-lik button:hover{ border-color:var(--violet); background:#F3EEFF; transform:translateY(-1px); }
+.pp-opts button.nose{ color:var(--ink-soft); border-style:dashed; }
+.pp-text{ width:100%; min-height:130px; border:2px solid var(--line); border-radius:14px; padding:12px; font:inherit; font-size:14.5px; resize:vertical; }
+.pp-hint{ font-size:12.5px; color:var(--ink-soft); margin:8px 0 12px; }
+.pp-compare{ display:flex; justify-content:center; align-items:center; gap:18px; margin:14px 0; }
+.pp-compare div b{ display:block; font-size:34px; font-family:Fredoka,Nunito,sans-serif; } .pp-compare div span{ font-size:12.5px; color:var(--ink-soft); font-weight:800; }
+.pp-compare .arrow{ font-size:28px; color:var(--pink); }
+.pp-review{ display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.pp-rev{ border-radius:14px; padding:12px 14px; font-size:13.5px; border-left:6px solid; } .pp-rev.ok{ background:#E9FBF3; border-color:var(--green); } .pp-rev.bad{ background:#FFF0F0; border-color:var(--red); }
+.pp-rev em{ display:block; margin-top:4px; color:var(--ink-soft); }
+.pp-banner.go{ background:linear-gradient(135deg,#FFF3E0,#FFE3F0); border-color:#FFB86B; } .pp-banner.done{ background:#E9FBF3; border-color:#9BE6C6; } .pp-banner.wait{ background:#F7F5FF; }
 </style>
 </head>
 <body>
@@ -390,6 +414,7 @@ footer.note{ text-align:center; font-size:12px; color:#9A96B8; margin-top:26px; 
 <div id="student-app" class="shell hidden">
   <section id="view-teoria" class="view-section active-view"><div id="teoria-root"></div></section>
   <section id="view-escenarios" class="view-section"><div id="esc-root"></div></section>
+  <section id="view-prepost" class="view-section"><div id="prepost-root"></div></section>
   <section id="view-juego" class="view-section"><div id="juego-root"></div></section>
 </div>
 
@@ -473,11 +498,12 @@ footer.note{ text-align:center; font-size:12px; color:#9A96B8; margin-top:26px; 
 const SHEETS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxXyRqhvML2ec70qVktjeLH_E0K24I-aXUCLy1pd3sCA-RcqgPfxTMD8lnzSjPwhkoqxA/exec";
 
 const CONFIG = {
+  POST_MIN_MODULES: 5,                   // módulos completados para habilitar el postest
   MIN_MINUTES: 30,                       // tiempo mínimo en la plataforma para desbloquear el juego
   DEV: /[?&]dev=1/.test(location.search) // ?dev=1 al final del enlace = modo prueba docente
 };
 
-const APP_VERSION = 'v4.1';
+const APP_VERSION = 'v4.2';
 const VALENCIA = { calma:'agradable', alegria:'agradable', curiosidad:'agradable', esperanza:'agradable', gratitud:'agradable', orgullo:'agradable', asombro:'agradable',
   preocupacion:'desagradable', ansiedad:'desagradable', miedo:'desagradable', tristeza:'desagradable', enojo:'desagradable', frustracion:'desagradable', culpa:'desagradable', impotencia:'desagradable', soledad:'desagradable',
   indiferencia:'neutra', aburrimiento:'neutra' };
@@ -820,6 +846,8 @@ const BADGES = [
   { id:'juego_1', ico:'🌱', title:'Brote veloz', desc:'Superar el nivel 1 del juego', test:G=>!!G.game.done['1'], bonus:true },
   { id:'juego_2', ico:'⛈️', title:'Sobreviviente de tormentas', desc:'Superar el nivel 2 del juego', test:G=>!!G.game.done['2'], bonus:true },
   { id:'juego_3', ico:'🌋', title:'Dominador del volcán', desc:'Superar el nivel 3 del juego', test:G=>!!G.game.done['3'], bonus:true },
+  { id:'pretest', ico:'🧭', title:'Punto de partida', desc:'Completar el pretest', test:G=>!!G.preDone, bonus:true },
+  { id:'postest', ico:'🏁', title:'Meta alcanzada', desc:'Completar el postest', test:G=>!!G.postDone, bonus:true },
   { id:'arcade', ico:'🪙', title:'Coleccionista de gotas', desc:'Recoger 50 monedas en el juego', test:G=>G.game.coins>=50, bonus:true },
 ];
 const REQUIRED_BADGES = BADGES.filter(b=>!b.bonus);
@@ -840,7 +868,7 @@ const STORAGE_KEY = 'ccme_real_data_v2';
 function loadRealData(){
   let d = {};
   try{ d = JSON.parse(lsGet(STORAGE_KEY) || lsGet('ccme_real_data_v1') || '{}') || {}; }catch(e){ d = {}; }
-  ['checkins','respuestas','personal','quiz','mitos','modulos','sesiones','juego','logros','registro','retos','family','valoraciones'].forEach(k=>{ if(!Array.isArray(d[k])) d[k]=[]; });
+  ['checkins','respuestas','personal','quiz','mitos','modulos','sesiones','juego','logros','registro','retos','family','valoraciones','prepost'].forEach(k=>{ if(!Array.isArray(d[k])) d[k]=[]; });
   return d;
 }
 let realData = loadRealData();
@@ -848,7 +876,7 @@ function saveRealData(){ lsSet(STORAGE_KEY, JSON.stringify(realData)); }
 /* ---------- registro de eventos + cola de envío (Google Sheets) ---------- */
 let sessionId = '', sessionStart = '', sessSeconds = 0;
 const OUTBOX_KEY = 'ccme_outbox_v1';
-const FLAT_NAME = { checkins:'checkin', respuestas:'situacion', personal:'reto_personal', quiz:'quiz', mitos:'mito', modulos:'modulo', sesiones:'sesion', juego:'juego', logros:'logro', registro:'registro' };
+const FLAT_NAME = { checkins:'checkin', respuestas:'situacion', personal:'reto_personal', quiz:'quiz', mitos:'mito', modulos:'modulo', sesiones:'sesion', juego:'juego', logros:'logro', registro:'registro', prepost:'prepost' };
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function hashCode(str){ let h=5381; for(let i=0;i<str.length;i++) h=((h<<5)+h+str.charCodeAt(i))|0; return Math.abs(h).toString(36).toUpperCase().padStart(5,'0').slice(0,5); }
 function studentId(){ return 'E'+userData.curso+'-'+hashCode(userData.curso+'|'+userData.nombre.toLowerCase().replace(/\s+/g,' ').trim()); }
@@ -913,7 +941,7 @@ function gameKey(){ return 'ccme_game_v2_' + userData.curso + '|' + userData.nom
 function defaultG(){
   return { xp:0, level:1, unlocked:[], checkinCount:0, checkinDays:[], modulesDone:[], quizOk:{}, glandsSeen:[], hormonesSeen:[],
            stressSteps:0, breathDone:0, mythOk:[], mythSeen:[], co2Max:0, sitDone:{}, maxEmos:0, maxInt:0, longOps:0, hasLong150:false,
-           personalDone:false, seconds:0, game:{ best:{}, done:{}, coins:0 }, unlockAnnounced:false, quizAttempts:{}, mythPlays:0 };
+           personalDone:false, seconds:0, game:{ best:{}, done:{}, coins:0 }, unlockAnnounced:false, quizAttempts:{}, mythPlays:0, preDone:false, postDone:false, preScore:null, postScore:null };
 }
 function loadG(){
   try{ const r = lsGet(gameKey()); if(r){ const o = JSON.parse(r); const d = defaultG(); const m = Object.assign(d, o); m.game = Object.assign(d.game, o.game||{}); return m; } }catch(e){}
@@ -948,7 +976,8 @@ function iniciarSesion(e){
   $('chat-toggle').classList.remove('hidden');
   renderTeoria();
   renderScenarios();
-  showView('teoria');
+  showView(G.preDone?'teoria':'prepost');
+  if(!G.preDone) ppStart('pre');
   updateUI();
   renderBadgesGrid();
   evalBadges();
@@ -964,9 +993,10 @@ function cerrarSesion(){
 
 /* ---------- navegación ---------- */
 function showView(name){
-  ['teoria','escenarios','juego'].forEach(v=>{
+  if(G && !G.preDone && name!=='prepost'){ showToast('🧭 Primero el pretest','Responde estas preguntas para comenzar.'); name = 'prepost'; }
+  ['teoria','escenarios','juego','prepost'].forEach(v=>{
     $('view-'+v).classList.toggle('active-view', v===name);
-    $('btn-'+v).classList.toggle('active', v===name);
+    const b = $('btn-'+v); if(b) b.classList.toggle('active', v===name);
   });
   if(name!=='juego' && typeof GD!=='undefined') GD.stop();
   if(name==='juego') renderJuego();
@@ -1137,6 +1167,7 @@ function renderTeoria(){
     '<div class="hero"><h2>'+gw.title+'</h2><p>'+gw.sub+'</p></div>' +
     '<div class="card"><h3>Salud emocional de tu curso 🌳</h3><p class="sub">Un indicador colectivo y anónimo: crece con la participación de todo el curso, no con lo que sienta cada persona.</p>' +
       '<div class="health-widget"><span class="health-tree" id="health-tree">🌱</span><div style="flex:1"><div class="health-track"><div class="health-fill" id="health-fill" style="width:4%"></div></div><div class="health-label" id="health-label"></div></div></div></div>' +
+    '<div id="post-card"></div>' +
     '<div class="card"><h3>💬 Check-in emocional</h3><p class="sub">¿Cómo te sientes hoy, en este momento? Ninguna emoción es buena ni mala.</p><div class="emotion-row" id="emotion-row"></div><div class="fact-box" id="fact-box"></div></div>' +
     '<div class="card"><h3>📚 Ruta de aprendizaje <span id="mod-progress" style="font-size:13px;color:var(--violet)"></span></h3><p class="sub">7 módulos con mapas, tarjetas y simuladores. Responde las preguntas de cada módulo para completarlo (+40 XP).</p><div class="mod-list">'+MODULES.map(modHTML).join('')+'</div></div>' +
     '<div class="card"><h3>🌱 Tu reto personal de la semana</h3><p class="sub">¿Qué acción concreta vas a hacer <b>tú</b> esta semana para cuidar el clima de tu barrio o de tu colegio, y cómo crees que te vas a sentir al hacerla?</p>' +
@@ -1146,6 +1177,7 @@ function renderTeoria(){
   MODULES.forEach(m=> m.init && m.init());
   renderCourseHealth();
   refreshModuleStates();
+  renderPostCard();
 }
 
 /* ---------- salud del salón ---------- */
@@ -1453,6 +1485,110 @@ function mythAnswer(val){
 }
 function mythNext(){ mythIdx++; renderMyth(); }
 function mythReplay(){ G.mythPlays=(G.mythPlays||0)+1; saveG(); mythIdx=0; renderMyth(); }
+/* =====================================================================
+   PRETEST / POSTEST  (mismo instrumento en dos momentos → ganancia de aprendizaje)
+   - 10 preguntas de opción múltiple (con opción "No lo sé") + 1 pregunta abierta + 1 escala de confianza
+   - Pretest: obligatorio al entrar por primera vez (sin retroalimentación).
+   - Postest: se habilita al completar CONFIG.POST_MIN_MODULES módulos (con retroalimentación y comparación).
+   ===================================================================== */
+const PP_NOSE = 'No lo sé';
+const PP_ITEMS = [
+ { q:'Las hormonas viajan por el cuerpo principalmente a través de…', opts:['La sangre','Los nervios','Los pulmones'], ok:0, why:'Las hormonas se liberan a la sangre y llegan a células de todo el cuerpo.' },
+ { q:'¿En qué glándulas se produce el cortisol?', opts:['Tiroides','Suprarrenales','Páncreas'], ok:1, why:'La corteza de las glándulas suprarrenales (sobre los riñones) produce el cortisol.' },
+ { q:'¿Qué estructura conecta las zonas emocionales del cerebro con el sistema endocrino?', opts:['El hipotálamo','El corazón','El estómago'], ok:0, why:'El hipotálamo recibe señales emocionales y le da órdenes a la hipófisis.' },
+ { q:'¿Cuál es el orden correcto del eje del estrés?', opts:['Suprarrenales → hipófisis → hipotálamo','Hipotálamo → hipófisis → suprarrenales','Hipófisis → suprarrenales → hipotálamo'], ok:1, why:'El hipotálamo libera CRH, la hipófisis libera ACTH y las suprarrenales liberan cortisol.' },
+ { q:'Cuando el cortisol en la sangre sube lo suficiente, en un cuerpo sano…', opts:['Se frena su propia producción (retroalimentación negativa)','Se produce todavía más sin parar','Desaparecen todas las demás hormonas'], ok:0, why:'La retroalimentación negativa funciona como un termostato: avisa al cerebro que ya hay suficiente hormona.' },
+ { q:'¿Qué efecto principal tiene la adrenalina?', opts:['Prepara al cuerpo para reaccionar rápido (acelera el corazón)','Produce sueño profundo','Baja la presión hasta desmayar'], ok:0, why:'La adrenalina activa la respuesta de lucha o huida: más pulso, más energía disponible.' },
+ { q:'¿Qué hormona se asocia con el vínculo, la confianza y el cuidado?', opts:['Cortisol','Oxitocina','Insulina'], ok:1, why:'La oxitocina se asocia con apego, confianza y conductas de cuidado.' },
+ { q:'Sentir tristeza o miedo ante un problema ambiental (ecoemoción) es…', opts:['Una respuesta normal que puede motivar a buscar apoyo y actuar','Una señal de que algo anda mal contigo','Algo que solo les pasa a los adultos'], ok:0, why:'Las emociones señalan que algo importante nos afecta; compartirlas y actuar en grupo ayuda a regularlas.' },
+ { q:'¿Por qué exhalar lento ayuda a calmarnos?', opts:['Activa el sistema parasimpático y baja el pulso','Aumenta la adrenalina','Detiene el cortisol para siempre'], ok:0, why:'La exhalación prolongada activa el nervio vago, que frena la respuesta de estrés.' },
+ { q:'Alguien afirma: “el estrés siempre es dañino”. Lo más acertado es decir que…', opts:['Es cierto: hay que eliminarlo por completo','A corto plazo ayuda a responder; el problema es el estrés intenso y sostenido','Solo afecta a las personas débiles'], ok:1, why:'El estrés agudo nos prepara para actuar; el estrés crónico es el que desgasta al cuerpo.' }
+];
+const PP_OPEN = 'Imagina que sientes mucho miedo justo antes de una exposición. Explica con tus palabras qué crees que pasa en tu cuerpo (qué órganos u hormonas intervienen) y qué podrías hacer para regularlo.';
+const PP_LIKERT = '¿Qué tan capaz te sientes de explicar cómo se relacionan tus emociones con lo que pasa en tu cuerpo?';
+const LIK_LABELS = ['1 · Nada','2','3 · Algo','4','5 · Mucho'];
+
+const PP = { fase:'', idx:0, order:[], ans:[], t0:0, openTxt:'', lik:0 };
+
+function ppShuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function postUnlocked(){ return !!(G && G.preDone && !G.postDone && G.modulesDone.length >= CONFIG.POST_MIN_MODULES); }
+
+function ppStart(fase){
+  if(fase==='pre' && G.preDone) return;
+  if(fase==='post' && (!postUnlocked())) return;
+  PP.fase = fase; PP.idx = 0; PP.ans = []; PP.openTxt=''; PP.lik=0; PP.order = ppShuffle(PP_ITEMS.map((_,i)=>i));
+  PP.items = PP.order.map(i=>{ const it = PP_ITEMS[i]; const o = ppShuffle(it.opts.map((t,k)=>({t,ok:k===it.ok}))); return { n:i+1, it, opts:o }; });
+  showView('prepost'); ppRender();
+}
+function ppTotalSteps(){ return PP_ITEMS.length + 2; }
+function ppRender(){
+  const root = $('prepost-root'); const fase = PP.fase; const step = PP.idx; const tot = ppTotalSteps();
+  const head = '<div class="card pp-card"><div class="pp-top"><span class="pp-tag '+fase+'">'+(fase==='pre'?'🧭 Pretest':'🏁 Postest')+'</span><span class="pp-count">Pregunta '+(step+1)+' de '+tot+'</span></div><div class="pp-bar"><i style="width:'+(step/tot*100)+'%"></i></div>';
+  PP.t0 = Date.now();
+  if(step < PP_ITEMS.length){
+    const x = PP.items[step];
+    root.innerHTML = head + '<h3 class="pp-q">'+(step+1)+'. '+esc(x.it.q)+'</h3><div class="pp-opts">'+
+      x.opts.map((o,k)=>'<button onclick="ppAnswer('+k+')">'+esc(o.t)+'</button>').join('')+
+      '<button class="nose" onclick="ppAnswer(-1)">🤷 '+PP_NOSE+'</button></div></div>';
+  } else if(step === PP_ITEMS.length){
+    root.innerHTML = head + '<h3 class="pp-q">'+(step+1)+'. '+esc(PP_OPEN)+'</h3><textarea id="pp-open" class="pp-text" placeholder="Escribe con tus propias palabras. No hay respuesta única."></textarea>'+
+      '<p class="pp-hint">Esta respuesta no es una nota: nos ayuda a entender cómo piensas.</p><button class="btn" onclick="ppOpenNext()">Siguiente →</button></div>';
+  } else {
+    root.innerHTML = head + '<h3 class="pp-q">'+(step+1)+'. '+esc(PP_LIKERT)+'</h3><div class="pp-lik">'+
+      LIK_LABELS.map((l,k)=>'<button onclick="ppLik('+(k+1)+')">'+l+'</button>').join('')+'</div></div>';
+  }
+  window.scrollTo({ top:0 });
+}
+function ppAnswer(k){
+  const x = PP.items[PP.idx]; const o = k>=0 ? x.opts[k] : null;
+  PP.ans.push({ n:x.n, q:x.it.q, resp: o?o.t:PP_NOSE, ok: o&&o.ok?1:0, t: Math.round((Date.now()-PP.t0)/1000), why:x.it.why, right:x.opts.find(z=>z.ok).t });
+  PP.idx++; ppRender();
+}
+function ppOpenNext(){
+  const v = ($('pp-open').value||'').trim();
+  if(v.length < 5){ showToast('Escribe un poco más','Cuéntanos con tus palabras lo que piensas.'); return; }
+  PP.openTxt = v; PP.openT = Math.round((Date.now()-PP.t0)/1000); PP.idx++; ppRender();
+}
+function ppLik(v){ PP.lik = v; PP.likT = Math.round((Date.now()-PP.t0)/1000); ppFinish(); }
+
+function ppScore(){ return PP.ans.reduce((a,r)=>a+r.ok,0); }
+function ppFinish(){
+  const fase = PP.fase, score = ppScore(), total = PP_ITEMS.length;
+  PP.ans.slice().sort((a,b)=>a.n-b.n).forEach(r=>{
+    logEvent('prepost', { fase, item_n:r.n, tipo_item:'opcion', pregunta:r.q, respuesta:r.resp, correcta:r.ok, tiempo_item_s:r.t, puntaje_fase:score, puntaje_max:total });
+  });
+  const words = PP.openTxt.split(/\s+/).filter(Boolean).length;
+  logEvent('prepost', { fase, item_n:11, tipo_item:'abierta', pregunta:PP_OPEN, respuesta:PP.openTxt, correcta:'', tiempo_item_s:PP.openT, puntaje_fase:score, puntaje_max:total, palabras:words, caracteres:PP.openTxt.length });
+  logEvent('prepost', { fase, item_n:12, tipo_item:'confianza', pregunta:PP_LIKERT, respuesta:PP.lik, correcta:'', tiempo_item_s:PP.likT, puntaje_fase:score, puntaje_max:total });
+  if(fase==='pre'){ G.preDone = true; G.preScore = score; } else { G.postDone = true; G.postScore = score; }
+  saveG(); addXP(40, fase==='pre'?'Pretest completado':'Postest completado'); evalBadges();
+  ppResult(); renderPostCard();
+}
+function ppResult(){
+  const root = $('prepost-root'), fase = PP.fase, score = ppScore(), total = PP_ITEMS.length;
+  if(fase==='pre'){
+    root.innerHTML = '<div class="card pp-card" style="text-align:center"><div style="font-size:54px">🧭</div><h3>¡Listo, punto de partida registrado!</h3>'+
+      '<p class="sub">No mostramos tus respuestas todavía: al final, en el postest, podrás ver cuánto avanzaste. No es una nota; es tu línea de partida.</p>'+
+      '<button class="btn warm" onclick="showView(\'teoria\')">Comenzar la aventura 🚀</button></div>';
+    return;
+  }
+  const pre = G.preScore, gain = score - (pre==null?0:pre);
+  root.innerHTML = '<div class="card pp-card"><div style="text-align:center"><div style="font-size:54px">🏁</div><h3>¡Postest completado!</h3>'+
+    '<div class="pp-compare"><div><b>'+(pre==null?'–':pre)+'/'+total+'</b><span>Pretest</span></div><div class="arrow">→</div><div><b>'+score+'/'+total+'</b><span>Postest</span></div></div>'+
+    '<p class="sub">'+(gain>0?'¡Avanzaste '+gain+' '+(gain===1?'punto':'puntos')+'! 🎉':(gain===0?'Mantuviste tu resultado. Repasa las explicaciones de abajo 👇':'Hoy te fue un poco distinto: revisa las explicaciones de abajo 👇'))+'</p></div>'+
+    '<div class="pp-review">'+PP.ans.slice().sort((a,b)=>a.n-b.n).map(r=>'<div class="pp-rev '+(r.ok?'ok':'bad')+'"><b>'+r.n+'. '+esc(r.q)+'</b><div>'+(r.ok?'✔ ':'✘ Tu respuesta: '+esc(r.resp)+' · ')+'Correcta: '+esc(r.right)+'</div><em>'+esc(r.why)+'</em></div>').join('')+'</div>'+
+    '<div style="text-align:center;margin-top:14px"><button class="btn green" onclick="showView(\'teoria\')">Volver a la plataforma</button></div></div>';
+}
+function renderPostCard(){
+  const el = $('post-card'); if(!el || !G) return;
+  if(G.postDone){ el.innerHTML = '<div class="card pp-banner done"><h3>🏁 Postest completado</h3><p class="sub" style="margin:0">Pretest '+(G.preScore==null?'–':G.preScore)+'/'+PP_ITEMS.length+' → Postest '+G.postScore+'/'+PP_ITEMS.length+'. ¡Gracias por participar!</p></div>'; return; }
+  if(postUnlocked()){ el.innerHTML = '<div class="card pp-banner go"><h3>🏁 ¡Ya puedes hacer el postest!</h3><p class="sub">Son 10 preguntas, 1 abierta y 1 de confianza (unos 8 minutos). Verás cuánto avanzaste desde el pretest.</p><button class="btn warm" onclick="ppStart(\'post\')">Hacer el postest</button></div>'; return; }
+  el.innerHTML = '<div class="card pp-banner wait"><h3>🏁 Postest</h3><p class="sub" style="margin:0">Se habilita al completar '+CONFIG.POST_MIN_MODULES+' módulos de teoría ('+G.modulesDone.length+'/'+CONFIG.POST_MIN_MODULES+'). Sirve para ver cuánto aprendiste.</p></div>';
+}
+(function(){
+  const _r = refreshModuleStates;
+  refreshModuleStates = function(){ _r(); renderPostCard(); };
+})();
 /* =====================================================================
    ESCENARIOS: 6 escenarios × 10 situaciones
    elegir hasta 3 emociones → intensidad 1–10 → gráficas + 3 datos → opinión
@@ -1906,12 +2042,16 @@ function consolidarEstudiantes(T){
   var avg = function(a){ a = a.filter(function(x){ return x!==null; }); return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*100)/100 : ''; };
   var pct = function(a,b){ return b ? Math.round(a/b*1000)/10 : ''; };
   var uniq = function(a){ var o={}; a.forEach(function(x){ o[x]=1; }); return Object.keys(o); };
+  var ppRows = function(a,f){ return a.filter(function(r){ return r.fase===f; }); };
+  var ppScore_ = function(a,f){ var x = ppRows(a,f).filter(function(r){ return num(r.item_n)<=10; }); if(!x.length) return ''; var seen = {}, s = 0; x.forEach(function(r){ if(!seen[r.item_n]){ seen[r.item_n]=1; s += yes(r.correcta)?1:0; } }); return s; };
+  var ppItem_ = function(a,f,n){ var x = ppRows(a,f).filter(function(r){ return num(r.item_n)===n; }); return x.length ? num(x[x.length-1].respuesta) : ''; };
+  var ppWords_ = function(a,f){ var x = ppRows(a,f).filter(function(r){ return num(r.item_n)===11; }); return x.length ? num(x[x.length-1].palabras) : ''; };
   var by = {};
-  var get = function(id){ return by[id] || (by[id] = { id_estudiante:id, nombre:'', curso:'', nivel:'', c:[], s:[], q:[], m:[], mo:[], se:[], j:[], l:[], p:[], g:[] }); };
+  var get = function(id){ return by[id] || (by[id] = { id_estudiante:id, nombre:'', curso:'', nivel:'', c:[], s:[], q:[], m:[], mo:[], se:[], j:[], l:[], p:[], g:[], pp:[] }); };
   var add = function(tipo, key){ (T[tipo]||[]).forEach(function(r){
     if(!r.id_estudiante) return; var e = get(r.id_estudiante);
     e.nombre = e.nombre || r.nombre; e.curso = e.curso || r.curso; e.nivel = e.nivel || r.nivel; e[key].push(r); }); };
-  add('registro','g'); add('checkin','c'); add('situacion','s'); add('quiz','q'); add('mito','m'); add('modulo','mo'); add('sesion','se'); add('juego','j'); add('logro','l'); add('reto_personal','p');
+  add('registro','g'); add('checkin','c'); add('situacion','s'); add('quiz','q'); add('mito','m'); add('modulo','mo'); add('sesion','se'); add('juego','j'); add('logro','l'); add('reto_personal','p'); add('prepost','pp');
 
   var out = Object.keys(by).map(function(id){
     var e = by[id], mode = '';
@@ -1952,10 +2092,19 @@ function consolidarEstudiantes(T){
       tiempo_por_situacion_media_s: avg(e.s.map(function(r){return num(r.tiempo_total_s);})),
       cambios_seleccion_media: avg(e.s.map(function(r){return num(r.cambios_seleccion);})),
       reto_personal_enviado: e.p.length ? 1 : 0,
+      // PRE / POST
+      pre_puntaje: ppScore_(e.pp,'pre'), post_puntaje: ppScore_(e.pp,'post'),
+      ganancia_puntos: '', ganancia_normalizada: '',
+      pre_confianza: ppItem_(e.pp,'pre',12), post_confianza: ppItem_(e.pp,'post',12),
+      pre_abierta_palabras: ppWords_(e.pp,'pre'), post_abierta_palabras: ppWords_(e.pp,'post'),
       // JUEGO
       juego_niveles_superados: uniq(e.j.filter(function(r){return r.resultado==='completo';}).map(function(r){return r.juego_nivel;})).length,
       juego_intentos: e.j.length
     };
+    if(row.pre_puntaje!=='' && row.post_puntaje!==''){
+      row.ganancia_puntos = row.post_puntaje - row.pre_puntaje;
+      row.ganancia_normalizada = row.pre_puntaje>=10 ? '' : Math.round((row.post_puntaje-row.pre_puntaje)/(10-row.pre_puntaje)*100)/100;   // ganancia de Hake
+    }
     return row;
   });
   out.sort(function(a,b){ return String(a.curso).localeCompare(String(b.curso)) || String(a.nombre).localeCompare(String(b.nombre)); });
@@ -2127,7 +2276,7 @@ function reenviarTodo(){
 }
 
 /* ---------- exportar / importar ---------- */
-const TAB_LABEL = { situacion:'Situaciones', checkin:'Checkins', quiz:'Quiz', mito:'Mitos', modulo:'Modulos', sesion:'Sesiones', juego:'Juego', logro:'Logros', reto_personal:'RetoPersonal', registro:'Registro' };
+const TAB_LABEL = { situacion:'Situaciones', checkin:'Checkins', quiz:'Quiz', mito:'Mitos', modulo:'Modulos', sesion:'Sesiones', juego:'Juego', logro:'Logros', reto_personal:'RetoPersonal', registro:'Registro', prepost:'PrePost' };
 function allFlat(){ const T = {}; Object.keys(FLAT_NAME).forEach(k=>{ T[FLAT_NAME[k]] = (realData[k]||[]).filter(r=>r.id).map(r=>flatten(k,r)); }); return T; }
 function exportXLSX(){
   if(typeof XLSX==='undefined'){ showToast('Sin librería Excel','Se descargó el CSV. Revisa tu conexión para el .xlsx.'); exportCSV(); return; }
